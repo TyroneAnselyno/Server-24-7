@@ -1,0 +1,235 @@
+{
+  "name": "Surya Yoga Studio — AI Automation Workflows",
+  "version": "1.0",
+  "description": "Make.com scenario definitions for Surya Yoga Studio AI system",
+  "scenarios": [
+    {
+      "id": "new-member-welcome",
+      "name": "New Member Welcome Flow",
+      "trigger": {
+        "type": "supabase-webhook",
+        "table": "members",
+        "event": "INSERT",
+        "description": "Fires when a new member row is created in Supabase"
+      },
+      "steps": [
+        {
+          "order": 1,
+          "name": "Extract member data",
+          "type": "set-variables",
+          "variables": {
+            "telegram_id": "{{trigger.new.telegram_id}}",
+            "nama": "{{trigger.new.nama}}",
+            "paket": "{{trigger.new.paket}}"
+          }
+        },
+        {
+          "order": 2,
+          "name": "Call marketing agent API",
+          "type": "http-request",
+          "method": "POST",
+          "url": "{{env.AI_SERVER_URL}}/api/marketing/welcome",
+          "headers": {
+            "Content-Type": "application/json",
+            "x-api-key": "{{env.INTERNAL_API_KEY}}"
+          },
+          "body": {
+            "telegram_id": "{{1.telegram_id}}",
+            "nama": "{{1.nama}}",
+            "paket": "{{1.paket}}"
+          }
+        },
+        {
+          "order": 3,
+          "name": "Send Telegram message",
+          "type": "telegram-send-message",
+          "chat_id": "{{1.telegram_id}}",
+          "text": "{{2.body.message}}",
+          "parse_mode": "Markdown"
+        }
+      ]
+    },
+    {
+      "id": "payment-due-reminder",
+      "name": "Monthly Payment Due Reminder",
+      "trigger": {
+        "type": "schedule",
+        "cron": "0 9 25 * *",
+        "timezone": "Asia/Jakarta",
+        "description": "Runs on the 25th of every month at 09:00 WIB"
+      },
+      "steps": [
+        {
+          "order": 1,
+          "name": "Get members with pending payments",
+          "type": "http-request",
+          "method": "GET",
+          "url": "{{env.AI_SERVER_URL}}/api/finance/pending-payments",
+          "headers": { "x-api-key": "{{env.INTERNAL_API_KEY}}" }
+        },
+        {
+          "order": 2,
+          "name": "Iterate over members",
+          "type": "iterator",
+          "source": "{{1.body.members}}"
+        },
+        {
+          "order": 3,
+          "name": "Generate reminder message",
+          "type": "http-request",
+          "method": "POST",
+          "url": "{{env.AI_SERVER_URL}}/api/finance/payment-reminder",
+          "headers": {
+            "Content-Type": "application/json",
+            "x-api-key": "{{env.INTERNAL_API_KEY}}"
+          },
+          "body": {
+            "nama": "{{2.nama}}",
+            "telegram_id": "{{2.telegram_id}}",
+            "jumlah": "{{2.jumlah}}",
+            "jatuh_tempo": "{{2.jatuh_tempo}}"
+          }
+        },
+        {
+          "order": 4,
+          "name": "Send reminder via Telegram",
+          "type": "telegram-send-message",
+          "chat_id": "{{2.telegram_id}}",
+          "text": "{{3.body.message}}",
+          "parse_mode": "Markdown"
+        }
+      ]
+    },
+    {
+      "id": "low-stock-alert",
+      "name": "Low Stock Alert to Owner",
+      "trigger": {
+        "type": "schedule",
+        "cron": "0 8 * * 1",
+        "timezone": "Asia/Jakarta",
+        "description": "Every Monday at 08:00 WIB"
+      },
+      "steps": [
+        {
+          "order": 1,
+          "name": "Check inventory status",
+          "type": "http-request",
+          "method": "GET",
+          "url": "{{env.AI_SERVER_URL}}/api/purchasing/low-stock",
+          "headers": { "x-api-key": "{{env.INTERNAL_API_KEY}}" }
+        },
+        {
+          "order": 2,
+          "name": "Check if any low stock items",
+          "type": "filter",
+          "condition": "{{1.body.count}} > 0"
+        },
+        {
+          "order": 3,
+          "name": "Generate Purchase Order",
+          "type": "http-request",
+          "method": "POST",
+          "url": "{{env.AI_SERVER_URL}}/api/purchasing/generate-po",
+          "headers": { "x-api-key": "{{env.INTERNAL_API_KEY}}" }
+        },
+        {
+          "order": 4,
+          "name": "Notify owner via Telegram",
+          "type": "telegram-send-message",
+          "chat_id": "{{env.TELEGRAM_OWNER_ID}}",
+          "text": "{{3.body.po_text}}",
+          "parse_mode": "Markdown"
+        }
+      ]
+    },
+    {
+      "id": "weekly-promo-blast",
+      "name": "Weekly Promotional Blast",
+      "trigger": {
+        "type": "schedule",
+        "cron": "0 10 * * 5",
+        "timezone": "Asia/Jakarta",
+        "description": "Every Friday at 10:00 WIB"
+      },
+      "steps": [
+        {
+          "order": 1,
+          "name": "Generate promo content",
+          "type": "http-request",
+          "method": "POST",
+          "url": "{{env.AI_SERVER_URL}}/api/marketing/generate-promo",
+          "headers": {
+            "Content-Type": "application/json",
+            "x-api-key": "{{env.INTERNAL_API_KEY}}"
+          },
+          "body": { "type": "promo_bulanan" }
+        },
+        {
+          "order": 2,
+          "name": "Get active members with Telegram",
+          "type": "http-request",
+          "method": "GET",
+          "url": "{{env.AI_SERVER_URL}}/api/members/active-with-telegram",
+          "headers": { "x-api-key": "{{env.INTERNAL_API_KEY}}" }
+        },
+        {
+          "order": 3,
+          "name": "Iterate over members",
+          "type": "iterator",
+          "source": "{{2.body.members}}"
+        },
+        {
+          "order": 4,
+          "name": "Send promo message",
+          "type": "telegram-send-message",
+          "chat_id": "{{3.telegram_id}}",
+          "text": "{{1.body.message}}",
+          "parse_mode": "Markdown"
+        }
+      ]
+    },
+    {
+      "id": "weekly-ai-evaluation",
+      "name": "Weekly AI Self-Evaluation",
+      "trigger": {
+        "type": "schedule",
+        "cron": "0 8 * * 1",
+        "timezone": "Asia/Jakarta",
+        "description": "Every Monday at 08:00 WIB — runs after stock check"
+      },
+      "steps": [
+        {
+          "order": 1,
+          "name": "Trigger weekly evaluator",
+          "type": "http-request",
+          "method": "POST",
+          "url": "{{env.AI_SERVER_URL}}/api/learning/evaluate",
+          "headers": { "x-api-key": "{{env.INTERNAL_API_KEY}}" }
+        },
+        {
+          "order": 2,
+          "name": "Send evaluation summary to owner",
+          "type": "telegram-send-message",
+          "chat_id": "{{env.TELEGRAM_OWNER_ID}}",
+          "text": "🤖 *Evaluasi AI Mingguan Selesai*\n\n{{1.body.summary}}",
+          "parse_mode": "Markdown"
+        }
+      ]
+    }
+  ],
+  "environment_variables": {
+    "AI_SERVER_URL": "URL server Express Node.js (e.g. https://your-server.railway.app)",
+    "INTERNAL_API_KEY": "Secret key untuk autentikasi antar-service",
+    "TELEGRAM_OWNER_ID": "Telegram chat ID owner studio",
+    "note": "Semua variabel ini di-set di Make.com > Connections > Environment Variables"
+  },
+  "setup_instructions": [
+    "1. Buka Make.com dan buat akun/login",
+    "2. Buat scenario baru untuk setiap item di 'scenarios' array",
+    "3. Gunakan Webhook module untuk trigger Supabase events",
+    "4. Gunakan HTTP module untuk panggil AI server API",
+    "5. Gunakan Telegram Bot module untuk kirim pesan",
+    "6. Set environment variables di Make.com settings",
+    "7. Aktifkan semua scenario dan test dengan data dummy"
+  ]
+}
