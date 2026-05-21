@@ -6,8 +6,8 @@
  */
 const path = require('path')
 
-// 1. Try local ai-system/.env first
-require('dotenv').config({ path: path.join(__dirname, '.env') })
+// 1. Try local ai-system/.env first (override: true so .env beats Replit Secrets)
+require('dotenv').config({ path: path.join(__dirname, '.env'), override: true })
 
 // 2. Fall back to root .env.local if SUPABASE_URL is still missing
 if (!process.env.SUPABASE_URL) {
