@@ -1,7 +1,7 @@
 require('../load-env')
 const axios = require('axios')
 
-const API_KEY = process.env.GROQ_API_KEY
+const API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY
 console.log('[groq] Key loaded:', API_KEY ? API_KEY.substring(0, 8) + '...' : 'TIDAK ADA KEY!')
 
 async function callGemini(systemPrompt, userMessage, maxTokens = 1024) {
