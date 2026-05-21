@@ -196,6 +196,12 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`[server] Surya Yoga AI running on port ${PORT}`)
   console.log(`[bot] Polling started — bot is active!`)
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`[server] Port ${PORT} already in use — skipping HTTP server, bot still active`)
+  } else {
+    console.error('[server] HTTP server error:', err.message)
+  }
 })
 
 module.exports = { app, bot }
