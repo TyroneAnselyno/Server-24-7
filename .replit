@@ -1,0 +1,6 @@
+run = "npm install && node bot/server.js"
+entrypoint = "bot/server.js"
+
+[[ports]]
+localPort = 3001
+externalPort = 80
